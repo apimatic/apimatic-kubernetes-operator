@@ -1,0 +1,13 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: apimatic-kubernetes-operator-catalog
+  namespace: olm
+spec:
+  sourceType: grpc
+  image: docker.io/apimaticio/apimatic-kubernetes-operator-catalog:v0.0.1
+  displayName: APIMatic-Kubernetes-Operator-Catalog
+  publisher: APIMatic.io
+  updateStrategy:
+    registryPoll:
+      interval: 10m

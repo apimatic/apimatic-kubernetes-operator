@@ -1,0 +1,11 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: apimatic-kubernetes-operator-subscription
+  namespace: apimatic-system
+spec:
+  channel: alpha
+  name: apimatic-kubernetes-operator
+  source: apimatic-kubernetes-operator-catalog
+  sourceNamespace: olm
+  installPlanApproval: Automatic

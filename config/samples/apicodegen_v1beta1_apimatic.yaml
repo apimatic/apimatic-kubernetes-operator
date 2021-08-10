@@ -3,13 +3,17 @@ kind: APIMatic
 metadata:
   name: apimatic-sample
 spec:
+  replicas: 3
   podspec:
-    image: 'obaidkhattak/apimatic-codegen'
+    image: 'apimaticio/apimatic-codegen'
+    imagePullSecrets: 
+    # Create a docker image secret using your username and password that was registered with APIMatic. More information at https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-secret-by-providing-credentials-on-the-command-line
+    - name: 'apimaticimagesecret'
   servicespec:
     servicetype: 'NodePort'
     apimaticserviceport: 
       nodePort: 32000
-      port: 8080
+      port: 8070
   volumespec:
     licensevolumename: 'licensevolume'
     licensevolumesource:

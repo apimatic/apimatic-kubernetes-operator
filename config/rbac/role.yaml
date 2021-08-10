@@ -39,6 +39,7 @@ rules:
   verbs:
   - create
   - get
+  - list
   - patch
   - update
   - watch
@@ -50,6 +51,7 @@ rules:
   - create
   - delete
   - get
+  - list
   - patch
   - watch
 - apiGroups:
