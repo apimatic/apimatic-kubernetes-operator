@@ -22,6 +22,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -33,20 +34,30 @@ var _ = Describe("APIMatic Controller", func() {
 	const (
 		APIMaticName      = "test-apimatic"
 		APIMaticNamespace = "default"
-		timeout           = time.Second * 5
+		timeout           = time.Second * 30
 		duration          = time.Second * 5
 		interval          = time.Millisecond * 250
-
-		ConfigMapName      = "test-apimatic-license-configmap"
-		ConfigMapNamespace = "default"
 
 		ServicePort = 8080
 	)
 
-	Context("When uploading APIMatic instance to k8s API server with minimal specifications", func() {
-		It("Should be created successfully with default values for replicas to 1, terminating grace period to 30s, apimatic license path default to /usr/local/apimatic, default apimatic container name to apimatic", func() {
-			By("Creating a new APIMatic instance with minimal specifications")
+	AfterEach(func() {
+		apimaticLookupKey := types.NamespacedName{Name: APIMaticName, Namespace: APIMaticNamespace}
+		apimaticCR := &apicodegenv1beta1.APIMatic{}
+		err := k8sClient.Get(context.Background(), apimaticLookupKey, apimaticCR)
+
+		if err == nil {
+			Expect(k8sClient.Delete(context.Background(), apimaticCR)).Should(Succeed())
+		}
+	})
+
+	Context("When uploading APIMatic instance to k8s API server with specifications", func() {
+		It("Should be created successfully", func() {
+			By("Creating a new APIMatic instance with specifications")
 			ctx := context.Background()
+
+			// Create a docker image secret using your username and password that was registered with APIMatic. More information at https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/#create-a-secret-by-providing-credentials-on-the-command-line
+			var imagePullSecret string = "apimaticimagesecret"
 			apimatic := &apicodegenv1beta1.APIMatic{
 				TypeMeta: metav1.TypeMeta{
 					APIVersion: "apicodegen.apimatic.io/v1beta1",
@@ -57,26 +68,25 @@ var _ = Describe("APIMatic Controller", func() {
 					Namespace: APIMaticNamespace,
 				},
 				Spec: apicodegenv1beta1.APIMaticSpec{
+					Replicas: 1,
 					PodSpec: apicodegenv1beta1.APIMaticPodSpec{
-						Image: "obaidkhattak/apimatic-codegen",
+						APIMaticContainerSpec: apicodegenv1beta1.APIMaticContainerSpec{
+							Image:           "apimaticio/apimatic-codegen:latest",
+							ImagePullSecret: &imagePullSecret,
+						},
 					},
 					ServiceSpec: apicodegenv1beta1.APIMaticServiceSpec{
 						APIMaticServicePort: &apicodegenv1beta1.APIMaticServicePort{
-							Port: 8080,
+							Port: ServicePort,
 						},
 					},
-					PodVolumeSpec: apicodegenv1beta1.APIMaticPodVolumeSpec{
-						APIMaticLicenseVolumeName: "licensevolume",
-						APIMaticLicenseVolumeSource: corev1.VolumeSource{
-							ConfigMap: &corev1.ConfigMapVolumeSource{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: "apimaticlicense",
-								},
-							},
-						},
+					LicenseSpec: apicodegenv1beta1.APIMaticLicenseSpec{
+						APIMaticLicenseSourceType: "ConfigMap",
+						APIMaticLicenseSourceName: ConfigMapName,
 					},
 				},
 			}
+
 			Expect(k8sClient.Create(ctx, apimatic)).Should(Succeed())
 
 			apimaticLookupKey := types.NamespacedName{Name: APIMaticName, Namespace: APIMaticNamespace}
@@ -85,11 +95,23 @@ var _ = Describe("APIMatic Controller", func() {
 			Eventually(func() bool {
 				err := k8sClient.Get(ctx, apimaticLookupKey, createdAPIMaticCR)
 				return err == nil
-			}, timeout, interval).Should(BeTrue())
-			Expect(createdAPIMaticCR.Spec.Replicas).Should(Equal(1))
-			Expect(createdAPIMaticCR.Spec.PodSpec.TerminationGracePeriodSeconds).Should(Equal(30))
-			Expect(createdAPIMaticCR.Spec.PodVolumeSpec.APIMaticLicensePath).Should(Equal("/usr/local/apimatic"))
-			Expect(createdAPIMaticCR.Spec.PodSpec.Name).Should(Equal("apimatic"))
+			}, timeout, duration).Should(BeTrue())
+			Expect(createdAPIMaticCR.Spec.Replicas).Should(Equal(int32(1)))
+			Expect(createdAPIMaticCR.Spec.PodSpec.TerminationGracePeriodSeconds).Should(Equal(int64(30)))
+
+			createdDeployment := &appsv1.Deployment{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, apimaticLookupKey, createdDeployment)
+				return err == nil
+			}, timeout, duration).Should(BeTrue())
+			Expect(*createdDeployment.Spec.Replicas).Should(Equal(int32(1)))
+
+			createdService := &corev1.Service{}
+			Eventually(func() bool {
+				err := k8sClient.Get(ctx, apimaticLookupKey, createdService)
+				return err == nil
+			}, timeout, duration).Should(BeTrue())
+			Expect(createdService.Spec.Type).Should(Equal(corev1.ServiceTypeClusterIP))
 		})
 	})
 })
