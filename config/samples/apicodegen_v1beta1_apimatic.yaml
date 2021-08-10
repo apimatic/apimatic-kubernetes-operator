@@ -1,0 +1,17 @@
+apiVersion: apicodegen.apimatic.io/v1beta1
+kind: APIMatic
+metadata:
+  name: apimatic-sample
+spec:
+  podspec:
+    image: 'obaidkhattak/apimatic-codegen'
+  servicespec:
+    servicetype: 'NodePort'
+    apimaticserviceport: 
+      nodePort: 32000
+      port: 8080
+  volumespec:
+    licensevolumename: 'licensevolume'
+    licensevolumesource:
+      configMap:
+        name: apimaticlicense

@@ -1,0 +1,16 @@
+domain: apimatic.io
+layout:
+- go.kubebuilder.io/v3
+projectName: apimatic-kubernetes-operator
+repo: github.com/apimatic/apimatic-kubernetes-operator
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: apimatic.io
+  group: apicodegen
+  kind: APIMatic
+  path: github.com/apimatic/apimatic-kubernetes-operator/api/v1beta1
+  version: v1beta1
+version: "3"

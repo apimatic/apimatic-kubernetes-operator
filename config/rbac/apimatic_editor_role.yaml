@@ -1,0 +1,24 @@
+# permissions for end users to edit apimatics.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: apimatic-editor-role
+rules:
+- apiGroups:
+  - apicodegen.apimatic.io
+  resources:
+  - apimatics
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apicodegen.apimatic.io
+  resources:
+  - apimatics/status
+  verbs:
+  - get
