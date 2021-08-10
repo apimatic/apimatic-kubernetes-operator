@@ -33,29 +33,29 @@ type APIMaticSpec struct {
 	// replicas is the desired number of instances of APIMatic. Minimum is 0. Defaults to 1 if not provided
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=0
-	Replicas *int32 `json:"replicas"`
+	// +kubebuilder:default=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:podCount"
+	Replicas int32 `json:"replicas"`
 
+	// APIMaticPodSpec contains configuration for created APIMatic pods
 	// +kubebuilder:validation:Required
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	PodSpec APIMaticPodSpec `json:"podspec"`
 
+	// APIMaticVolumeSpec contains configuration for volumes associated with created APIMatic pods
 	// +kubebuilder:validation:Required
-	PodVolumeSpec APIMaticPodVolumeSpec `json:"volumespec"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	LicenseSpec APIMaticLicenseSpec `json:"licensespec"`
 
+	// APIMaticServiceSpec contains configuration for the service that exposes the APIMatic pods
 	// +kubebuilder:validation:Required
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	ServiceSpec APIMaticServiceSpec `json:"servicespec"`
 
+	// APIMaticPodPlacementSpec configures the APIMatic pod scheduling policy
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	APIMaticPodPlacementSpec *APIMaticPodPlacementSpec `json:"podplacementspec,omitempty"`
-
-	// volumeClaimTemplates is a list of claims that pods are allowed to reference.
-	// The StatefulSet controller is responsible for mapping network identities to
-	// claims in a way that maintains the identity of a pod. Every claim in
-	// this list must have at least one matching (by name) volumeMount in one
-	// container in the template. A claim in this list takes precedence over
-	// any volumes in the template, with the same name.
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	VolumeClaimTemplates []corev1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
 // APIMaticStatus defines the observed state of APIMatic
@@ -64,43 +64,50 @@ type APIMaticStatus struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// +kubebuilder:validation:Optional
-	// statefulsetStatus displays the status of the owned service resource which exposes the APIMatic pods for communication
-	StatefulSetStatus appsv1.StatefulSetStatus `json:"statefulsetStatus,omitempty"`
+	// statefulsetStatus displays the status of the owned deployment resource which exposes the APIMatic pods for communication
+	//+operator-sdk:csv:customresourcedefinitions:type=status
+	DeploymentStatus appsv1.DeploymentStatus `json:"deploymentStatus,omitempty"`
 
 	// +kubebuilder:validation:Optional
 	// serviceStatus displays the status of the owned service resource which exposes the APIMatic pods for communication
+	//+operator-sdk:csv:customresourcedefinitions:type=status
 	ServiceStatus corev1.ServiceStatus `json:"serviceStatus,omitempty"`
 }
 
-// APIMaticPodSpec contains configuration for created APIMatic pods
-type APIMaticPodSpec struct {
+
+type APIMaticContainerSpec struct {
 	// APIMatic container image
 	// +kubebuilder:validation:Required
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	Image string `json:"image"`
 
-	// APIMatic container name. If none given, name will be set as apimatic
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinLength=1
-	Name *string `json:"name,omitempty"`
-
-	// PullPolicy describes a policy for if/when to pull a container image. Valid values are Always, Never and IfNotPresent. Defaults to IfNotPresent if not provided
+	// Image pull policy. One of Always, Never, IfNotPresent. Defaults to Always if :latest tag is specified, or IfNotPresent otherwise. Cannot be updated.More info: https://kubernetes.io/docs/concepts/containers/images#updating-images
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=Always;Never;IfNotPresent
-	ImagePullPolicy *corev1.PullPolicy `json:"imagepullpolicy,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:imagePullPolicy"
+	ImagePullPolicy *corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
-	// sidecars are the collection of sidecar containers in addition to the main APIMatic container
+	// ImagePullSecret is an optional reference to a secret in the same namespace to use for pulling the APIMatic CodeGen container image.
+	// If specified, this secrets will be passed to the puller implementation to use. For example,
+	// in the case of docker, only DockerConfig type secrets are honored.
+	// More info: https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	SideCars []corev1.Container `json:"sidecars,omitempty"`
-
-	// More info: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	InitContainers []corev1.Container `json:"initcontainers,omitempty"`
+	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	ImagePullSecret *string `json:"imagePullSecret,omitempty"`
 
 	// Resource Requirements represents the compute resource requirements of the APIMatic container
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Resource Requirements",xDescriptors="urn:alm:descriptor:com.tectonic.ui:resourceRequirement"
 	Resources *corev1.ResourceRequirements `json:"resources,omitempty"`
+}
+
+type APIMaticPodSpec struct {
+
+	// APIMaticContainerSpec defines the configurations used for the APIMatic CodeGen container
+	// +kubebuilder:validation:Required
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	APIMaticContainerSpec APIMaticContainerSpec `json:"apimaticContainerSpec"`
 
 	// Optional duration in seconds the pod needs to terminate gracefully. May be decreased in delete request.
 	// Value must be non-negative integer. The value zero indicates delete immediately.
@@ -111,7 +118,9 @@ type APIMaticPodSpec struct {
 	// Defaults to 30 seconds.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=0
-	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+	// +kubebuilder:default=30
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:number"
+	TerminationGracePeriodSeconds int64 `json:"terminationGracePeriodSeconds,omitempty"`
 
 	// Optional duration in seconds the pod may be active on the node relative to
 	// StartTime before the system will actively try to mark it failed and kill associated containers.
@@ -119,6 +128,7 @@ type APIMaticPodSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:ExclusiveMinimum=true
 	// +kubebuilder:validation:Minimum=0
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:number"
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
 
 	// Set DNS policy for the pod.
@@ -128,20 +138,25 @@ type APIMaticPodSpec struct {
 	// To have DNS options set along with hostNetwork, you have to specify DNS policy
 	// explicitly to 'ClusterFirstWithHostNet'.
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=ClusterFirst
 	// +kubebuilder:validation:Enum=ClusterFirstWithHostNet;ClusterFirst;Default;None
-	DNSPolicy *corev1.DNSPolicy `json:"dnsPolicy,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	DNSPolicy corev1.DNSPolicy `json:"dnsPolicy,omitempty"`
 
 	// Specifies the DNS parameters of a pod.
 	// Parameters specified here will be merged to the generated DNS
 	// configuration based on DNSPolicy.
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	DNSConfig *corev1.PodDNSConfig `json:"dnsConfig,omitempty"`
 
 	// Host networking requested for this pod. Use the host's network namespace.
 	// If this option is set, the ports that will be used must be specified.
 	// Default to false.
 	// +kubebuilder:validation:Optional
-	HostNetwork *bool `json:"hostNetwork,omitempty"`
+	// +kubebuilder:default=false
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostNetwork bool `json:"hostNetwork,omitempty"`
 
 	// Restart policy for all containers within the pod.
 	// One of Always, OnFailure, Never.
@@ -149,71 +164,68 @@ type APIMaticPodSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=Always;OnFailure;Never
-	RestartPolicy *corev1.RestartPolicy `json:"restartPolicy,omitempty"`
+	// +kubebuilder:default=Always
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	RestartPolicy corev1.RestartPolicy `json:"restartPolicy,omitempty"`
 
 	// ServiceAccountName is the name of the ServiceAccount to use to run this pod.
 	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 
 	// AutomountServiceAccountToken indicates whether a service account token should be automatically mounted.
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
 
 	// Use the host's pid namespace.
 	// Optional: Default to false.
 	// +kubebuilder:validation:Optional
-	HostPID *bool `json:"hostPID,omitempty"`
+	// +kubebuilder:default=false
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostPID bool `json:"hostPID,omitempty"`
 
 	// Use the host's ipc namespace.
 	// Optional: Default to false.
 	// +kubebuilder:validation:Optional
-	HostIPC *bool `json:"hostIPC,omitempty"`
-
-	// Share a single process namespace between all of the containers in a pod.
-	// When this is set containers will be able to view and signal processes from other containers
-	// in the same pod, and the first process in each container will not be assigned PID 1.
-	// HostPID and ShareProcessNamespace cannot both be set.
-	// Optional: Default to false.
-	// +kubebuilder:validation:Optional
-	ShareProcessNamespace *bool `json:"shareProcessNamespace,omitempty"`
+	// +kubebuilder:default=false
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	HostIPC bool `json:"hostIPC,omitempty"`
 
 	// SecurityContext holds pod-level security attributes and common container settings.
 	// Optional: Defaults to empty.  See type description for default values of each field.
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SecurityContext *corev1.PodSecurityContext `json:"securityContext,omitempty"`
-
-	// ImagePullSecrets is an optional list of references to secrets in the same namespace to use for pulling any of the images used by this PodSpec.
-	// If specified, these secrets will be passed to individual puller implementations for them to use. For example,
-	// in the case of docker, only DockerConfig type secrets are honored.
-	// More info: https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
 	// Specifies the hostname of the Pod
 	// If not specified, the pod's hostname will be set to a system-defined value.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	Hostname *string `json:"hostname,omitempty"`
 
 	// If specified, the fully qualified Pod hostname will be "<hostname>.<subdomain>.<pod namespace>.svc.<cluster domain>".
 	// If not specified, the pod will not have a domainname at all.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	Subdomain *string `json:"subdomain,omitempty"`
 
 	// If specified, the pod will be dispatched by specified scheduler.
 	// If not specified, the pod will be dispatched by default scheduler.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	SchedulerName *string `json:"schedulerName,omitempty"`
 
 	// HostAliases is an optional list of hosts and IPs that will be injected into the pod's hosts
 	// file if specified. This is only valid for non-hostNetwork pods.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	HostAliases []corev1.HostAlias `json:"hostAliases,omitempty"`
 
 	// If specified, indicates the pod's priority. "system-node-critical" and
@@ -224,6 +236,7 @@ type APIMaticPodSpec struct {
 	// default.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	PriorityClassName *string `json:"priorityClassName,omitempty"`
 
 	// The priority value. Various system components use this field to find the
@@ -232,6 +245,7 @@ type APIMaticPodSpec struct {
 	// this field from PriorityClassName.
 	// The higher the value, the higher the priority.
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:number"
 	Priority *int32 `json:"priority,omitempty"`
 
 	// If specified, all readiness gates will be evaluated for pod readiness.
@@ -240,50 +254,48 @@ type APIMaticPodSpec struct {
 	// More info: https://git.k8s.io/enhancements/keps/sig-network/0007-pod-ready%2B%2B.md
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	ReadinessGates []corev1.PodReadinessGate `json:"readinessGates,omitempty"`
 
 	// EnableServiceLinks indicates whether information about services should be injected into pod's
 	// environment variables, matching the syntax of Docker links.
 	// Optional: Defaults to true.
 	// +kubebuilder:validation:Optional
-	EnableServiceLinks *bool `json:"enableServiceLinks,omitempty"`
+	// +kubebuilder:default=true
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	EnableServiceLinks bool `json:"enableServiceLinks,omitempty"`
 
 	// If a pod does not have FQDN, this has no effect.
 	// Default to false.
 	// +kubebuilder:validation:Optional
-	SetHostnameAsFQDN *bool `json:"setHostnameAsFQDN,omitempty"`
+	// +kubebuilder:default=false
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	SetHostnameAsFQDN bool `json:"setHostnameAsFQDN,omitempty"`
 }
 
-// APIMaticVolumeSpec contains configuration for volumes associated with created APIMatic pods
-type APIMaticPodVolumeSpec struct {
+type APIMaticLicenseSpec struct {
 
-	// The license path which will be used to volume mount the license file. If not provided, the license path is set as /usr/local/apimatic
-	// kubebuilder:validation:Optional
-	// kubebuilder:validation:MinLength=1
-	APIMaticLicensePath *string `json:"licensevolumemountpath,omitempty"`
+	// The type of resource that includes the APIMatic license file information. Valid values are ConfigMap and ConfigSecret.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=ConfigMap;ConfigSecret
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	APIMaticLicenseSourceType string `json:"licenseSourceType"`
 
-	// The name of volume from where the APIMatic license file is to be retrieved
+	// The name of the resource that includes the APIMatic license file information.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	APIMaticLicenseVolumeName string `json:"licensevolumename"`
-
-	// The volume source from where the APIMatic license file is to be retrieved
-	// +kubebuilder:validation:Required
-	APIMaticLicenseVolumeSource corev1.VolumeSource `json:"licensevolumesource"`
-
-	// Additional volumes if required in case of sidecar/init containers
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	AdditionalVolumes []corev1.Volume `json:"additionalvolumes,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	APIMaticLicenseSourceName string `json:"licenseSourceName"`
 }
 
-// APIMaticServiceSpec contains configuration for the service that exposes the APIMatic pods
 type APIMaticServiceSpec struct {
 
 	// Type string describes ingress methods for a service. Valid values are ClusterIP, NodePort, LoadBalancer, ExternalName, None. Defaults to ClusterIP
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=ClusterIP
 	// +kubebuilder:validation:Enum=ClusterIP;NodePort;LoadBalancer;ExternalName
-	Type *corev1.ServiceType `json:"servicetype,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	Type corev1.ServiceType `json:"servicetype,omitempty"`
 
 	// clusterIP is the IP address of the service and is usually assigned
 	// randomly. If an address is specified manually, is in-range (as per
@@ -301,6 +313,7 @@ type APIMaticServiceSpec struct {
 	// field will be wiped when updating a Service to type ExternalName.
 	// More info: https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	ClusterIP *string `json:"clusterIP,omitempty"`
 
 	// externalIPs is a list of IP addresses for which nodes in the cluster
@@ -309,6 +322,7 @@ type APIMaticServiceSpec struct {
 	// at a node with this IP.  A common example is external load-balancers
 	// that are not part of the Kubernetes system.
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	ExternalIPs []string `json:"externalIPs,omitempty"`
 
 	// Supports "ClientIP" and "None". Used to maintain session affinity.
@@ -317,14 +331,18 @@ type APIMaticServiceSpec struct {
 	// Defaults to None.
 	// More info: https://kubernetes.io/docs/concepts/services-networking/service/#virtual-ips-and-service-proxies
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:default=None
 	// +kubebuilder:validation:Enum=ClientIP;None
-	SessionAffinity *corev1.ServiceAffinity `json:"sessionAffinity,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	SessionAffinity corev1.ServiceAffinity `json:"sessionAffinity,omitempty"`
 
 	// externalName is the external reference that discovery mechanisms will
 	// return as an alias for this service (e.g. a DNS CNAME record). No
 	// proxying will be involved.  Must be a lowercase RFC-1123 hostname
 	// (https://tools.ietf.org/html/rfc1123) and requires Type to be ExternalName
 	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	ExternalName *string `json:"externalName,omitempty"`
 
 	// externalTrafficPolicy denotes if this Service desires to route external
@@ -332,9 +350,11 @@ type APIMaticServiceSpec struct {
 	// client source IP and avoids a second hop for LoadBalancer and Nodeport
 	// type services, but risks potentially imbalanced traffic spreading.
 	// "Cluster" obscures the client source IP and may cause a second hop to
-	// another node, but should have good overall load-spreading.
+	// another node, but should have good overall load-spreading. Only set if Type is LoadBalancer or
+	// Nodeport. If not defined for LoadBalancer or Nodeport type, defaults to Cluster.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Enum=Local;Cluster
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	ExternalTrafficPolicy *corev1.ServiceExternalTrafficPolicyType `json:"externalTrafficPolicy,omitempty"`
 
 	// healthCheckNodePort specifies the healthcheck nodePort for the service.
@@ -347,6 +367,7 @@ type APIMaticServiceSpec struct {
 	// which does not need it, creation will fail. This field will be wiped
 	// when updating a Service to no longer need it (e.g. changing type).
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:number"
 	HealthCheckNodePort *int32 `json:"healthCheckNodePort,omitempty"`
 
 	// publishNotReadyAddresses indicates that any agent which deals with endpoints for this
@@ -358,10 +379,13 @@ type APIMaticServiceSpec struct {
 	// Pods themselves are not. Agents which consume only Kubernetes generated endpoints
 	// through the Endpoints or EndpointSlice resources can safely assume this behavior. Defaults to false
 	// +kubebuilder:validation:Optional
-	PublishNotReadyAddresses *bool `json:"publishNotReadyAddresses,omitempty"`
+	// +kubebuilder:default=false
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:booleanSwitch"
+	PublishNotReadyAddresses bool `json:"publishNotReadyAddresses,omitempty"`
 
 	// sessionAffinityConfig contains the configurations of session affinity.
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	SessionAffinityConfig *corev1.SessionAffinityConfig `json:"sessionAffinityConfig,omitempty"`
 
 	// topologyKeys is a preference-order list of topology keys which
@@ -380,6 +404,7 @@ type APIMaticServiceSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=16
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	TopologyKeys []string `json:"topologyKeys,omitempty"`
 
 	// IPFamilies is a list of IP families (e.g. IPv4, IPv6) assigned to this
@@ -403,6 +428,7 @@ type APIMaticServiceSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
 	// +kubebuilder:validation:MaxItems=2
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	IPFamilies []corev1.IPFamily `json:"ipFamilies,omitempty"`
 
 	// IPFamilyPolicy represents the dual-stack-ness requested or required by
@@ -415,45 +441,35 @@ type APIMaticServiceSpec struct {
 	// clusterIPs fields depend on the value of this field.  This field will be
 	// wiped when updating a service to type ExternalName.
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Enum=SingeStack;PreferDualStack;RequireDualStack
+	// +kubebuilder:validation:Enum=SingleStack;PreferDualStack;RequireDualStack
+	// +kubebuilder:default=SingleStack
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	IPFamilyPolicy *corev1.IPFamilyPolicyType `json:"ipFamilyPolicy,omitempty"`
-
-	// allocateLoadBalancerNodePorts defines if NodePorts will be automatically
-	// allocated for services with type LoadBalancer.  Default is "true". It may be
-	// set to "false" if the cluster load-balancer does not rely on NodePorts.
-	// allocateLoadBalancerNodePorts may only be set for services with type LoadBalancer
-	// and will be cleared if the type is changed to any other type.
-	// This field is alpha-level and is only honored by servers that enable the ServiceLBNodePortControl feature.
-	// +kubebuilder:validation:Optional
-	AllocateLoadBalancerNodePorts *bool `json:"allocateLoadBalancerNodePorts,omitempty"`
 
 	//APIMatic Service Port specifies how the APIMatic service is exposed within the pod
 	// +kubebuilder:validation:Required
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	APIMaticServicePort *APIMaticServicePort `json:"apimaticserviceport"`
-
-	// Additional volumes if required in case of sidecar/init containers
-	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:MinItems=1
-	AdditionalServicePorts []corev1.ServicePort `json:"additionalserviceports,omitempty"`
 
 	// Only applies to Service Type: LoadBalancer
 	// LoadBalancer will get created with the IP specified in this field.
 	// This feature depends on whether the underlying cloud-provider supports specifying
 	// the loadBalancerIP when a load balancer is created.
 	// This field will be ignored if the cloud-provider does not support the feature.
-	// +optional
-	LoadBalancerIP *string `json:"loadBalancerIP,omitempty" protobuf:"bytes,8,opt,name=loadBalancerIP"`
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	LoadBalancerIP *string `json:"loadBalancerIP,omitempty"`
 }
 
 // APIMaticServicePort configures the APIMatic container ports exposed by the service
 type APIMaticServicePort struct {
-	// The name of the APIMatic service port within the service. This must be a DNS_LABEL.
-	// All ports within a ServiceSpec must have unique names. When considering
-	// the endpoints for a Service, this must match the 'name' field in the
-	// EndpointPort.
-	// Optional if only one ServicePort is defined on this service.
+	// The name of the APIMatic service port within the service. This must be a DNS_LABEL. Defaults to apimatic
 	// +kubebuilder:validation:Optional
-	Name *string `json:"name,omitempty"`
+	// +kubebuilder:default=apimatic
+	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
+	Name string `json:"name,omitempty"`
 
 	// The port on each node on which this service is exposed when type is
 	// NodePort or LoadBalancer.  Usually assigned by the system. If a value is
@@ -467,14 +483,15 @@ type APIMaticServicePort struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:Minimum=30000
 	// +kubebuilder:validation:Maximum=32767
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:number"
 	NodePort *int32 `json:"nodePort,omitempty"`
 
 	// The port that will be exposed by this service.
 	// +kubebuilder:validation:Required
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:number"
 	Port int32 `json:"port"`
 }
 
-// APIMaticPodPlacementSpec configures the APIMatic pod scheduling policy
 // +kubebuilder:validation:MinProperties=1
 type APIMaticPodPlacementSpec struct {
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
@@ -482,6 +499,7 @@ type APIMaticPodPlacementSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinProperties=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 
 	// NodeName is a request to schedule this pod onto a specific node. If it is non-empty,
@@ -489,27 +507,32 @@ type APIMaticPodPlacementSpec struct {
 	// requirements.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinLength=1
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:text"
 	NodeName *string `json:"nodeName,omitempty"`
 
 	// If specified, the pod's tolerations.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:validation:MinItems=1
-	Tolerations []corev1.Toleration `json:"tolerations,omitempty" protobuf:"bytes,22,opt,name=tolerations"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
 
 	// Describes node affinity scheduling rules for the pod.
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:nodeAffinity"
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
 	// Describes pod affinity scheduling rules (e.g. co-locate this pod in the same node, zone, etc. as some other pod(s)).
 	// +kubebuilder:validation:Optional
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,xDescriptors="urn:alm:descriptor:com.tectonic.ui:podAffinity"
 	PodAffinity *corev1.PodAffinity `json:"podAffinity,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:resource:shortName=apm
 //+kubebuilder:subresource:status
-//+kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.statefulsetStatus.replicas
+//+kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.deploymentStatus.replicas
 
 // APIMatic is the Schema for the apimatics API
+//+operator-sdk:csv:customresourcedefinitions:displayName="APIMatic App",resources={{Service,v1,apimatic-service},{Deployment,apps/v1,apimatic-deployment}}
 type APIMatic struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
