@@ -11,7 +11,7 @@
 
 ## Introduction
 
-APIMatic Operator simplifies the configuration and lifecycle management of the APIMatic code and docs generation on different Kubernetes distributions and OpenShift. The Operator encapsulates key operational knowledge on how to configure and upgrade the APIMatic CodeGen application, making the use of it for APIMatic API management features easy to set and use.
+APIMatic Operator simplifies the configuration and lifecycle management of the APIMatic code and docs generation solution on different Kubernetes distributions and OpenShift. The Operator encapsulates key operational knowledge on how to configure and upgrade the APIMatic CodeGen application, making it easy to get up and running.
 
 
 More information about the underlying APIMatic CodeGen API that is exposed
